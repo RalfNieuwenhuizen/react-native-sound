@@ -23,6 +23,7 @@ import java.util.Map;
 import java.io.IOException;
 
 import android.util.Log;
+import java.util.Set;
 
 public class RNSoundModule extends ReactContextBaseJavaModule {
   Map<Integer, MediaPlayer> playerPool = new HashMap<>();
@@ -339,5 +340,34 @@ public class RNSoundModule extends ReactContextBaseJavaModule {
     final Map<String, Object> constants = new HashMap<>();
     constants.put("IsAndroid", true);
     return constants;
+  }
+
+  /**
+   * Ensure any audios that are playing when app exits are stopped and released
+   */
+  @Override
+  public void onCatalystInstanceDestroy() {
+    super.onCatalystInstanceDestroy();
+
+    Set<Map.Entry<Integer, MediaPlayer>> entries = playerPool.entrySet();
+    for (Map.Entry<Integer, MediaPlayer> entry : entries) {
+      MediaPlayer mp = entry.getValue();
+      if (mp == null) {
+        continue;
+      }
+      try {
+        mp.setOnCompletionListener(null);
+        mp.setOnPreparedListener(null);
+        mp.setOnErrorListener(null);
+        if (mp.isPlaying()) {
+          mp.stop();
+        }
+        mp.reset();
+        mp.release();
+      } catch (Exception ex) {
+        Log.e("RNSoundModule", "Exception when closing audios during app exit. ", ex);
+      }
+    }
+    entries.clear();
   }
 }
